@@ -9,6 +9,21 @@ void ledShowChar(char c);
 
 ///  GPS  ///  GPS  ///  GPS  ///
 
+#define _GPS_NO_STATS
+
+#include <SoftwareSerial.h>
+#include "TinyGPS.h"
+
+typedef struct {
+  unsigned short nofSatellites;
+  long latitude, longitude, altitude;
+  unsigned long date, time;
+} GpsData;
+
+void gpsWakeUp();
+bool gpsTryReadData(GpsData* data);
+void gpsShutDown();
+
 ///  SD   ///  SD   ///  SD   ///
 
 /// WIFI  /// WIFI  /// WIFI  ///
@@ -21,8 +36,25 @@ void setup() {
 
   Serial.begin(115200);
   ledSetup();
+  gpsSetup();
 
   ledShowString("running");
+
+  GpsData data;
+  gpsWakeUp();
+  auto success = gpsTryReadData(&data);
+  gpsShutDown();
+
+  if (!success)
+    Serial.println("error!");
+  else {
+    Serial.println(data.nofSatellites);
+    Serial.println(data.latitude);
+    Serial.println(data.longitude);
+    Serial.println(data.altitude);
+    Serial.println(data.date);
+    Serial.println(data.time);
+  }
 }
 
 /////////////////////////////////
@@ -83,6 +115,76 @@ void ledShowChar(const char c) {
 /////////////////////////////////
 ///  GPS  ///  GPS  ///  GPS  ///
 /////////////////////////////////
+
+const auto gpsOnOffPin = A3;
+const auto gpsSysOnPin = A2;
+const uint32_t gpsBaud = 9600;
+
+SoftwareSerial gpsSerial(A1, A0);
+TinyGPS gps;
+
+void gpsSetup() {
+
+  gpsSerial.begin(gpsBaud);
+
+  digitalWrite(gpsOnOffPin, LOW);
+  pinMode(gpsOnOffPin, OUTPUT);
+  pinMode(gpsSysOnPin, INPUT);
+  delay(100);
+}
+
+void gpsDelay(const unsigned long ms) {
+
+  const unsigned long start = millis();
+  do {
+    while (gpsSerial.available())
+      gps.encode(gpsSerial.read());
+  } while (millis() - start < ms);
+}
+
+void gpsWakeUp() {
+
+  Serial.print("Waking up GPS module..");
+  while (digitalRead(gpsSysOnPin) == LOW) {
+    Serial.print(".");
+    digitalWrite(gpsOnOffPin, HIGH);
+    delay(5);
+    digitalWrite(gpsOnOffPin, LOW);
+    delay(100);
+  }
+  Serial.println(" done.");
+
+  Serial.print("Calibrating GPS module...");
+  gpsDelay(20000);
+  Serial.println(" done.");
+}
+
+bool gpsTryReadData(GpsData* data) {
+
+  unsigned long age;
+
+  data->nofSatellites = gps.satellites();
+  gps.get_position(&data->latitude, &data->longitude, &age);
+  data->altitude = gps.altitude();
+  gps.get_datetime(&data->date, &data->time, &age);
+
+  return data->latitude != TinyGPS::GPS_INVALID_F_ANGLE
+    && data->altitude != TinyGPS::GPS_INVALID_ALTITUDE
+    && age != TinyGPS::GPS_INVALID_AGE;
+}
+
+void gpsShutDown() {
+
+  Serial.print("Shutting down GPS module..");
+  while (digitalRead(gpsSysOnPin) == HIGH) {
+    Serial.print(".");
+    digitalWrite(gpsOnOffPin, LOW);
+    delay(5);
+    digitalWrite(gpsOnOffPin, HIGH);
+    delay(100);
+  }
+  Serial.println(" done.");
+}
 
 /////////////////////////////////
 ///  SD   ///  SD   ///  SD   ///
