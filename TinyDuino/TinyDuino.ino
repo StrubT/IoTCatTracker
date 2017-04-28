@@ -1,5 +1,4 @@
 
-
 ///  LED  ///  LED  ///  LED  ///
 
 void ledSetup();
@@ -66,6 +65,7 @@ void ledShowString(const char *s) {
     }
   }
 }
+
 void ledShowChar(const char c) {
 
   if (charMin > c || c > charMax)
@@ -91,3 +91,4 @@ void ledShowChar(const char c) {
 /////////////////////////////////
 /// WIFI  /// WIFI  /// WIFI  ///
 /////////////////////////////////
+
