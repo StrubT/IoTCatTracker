@@ -1,19 +1,13 @@
 
-///  LED  ///  LED  ///  LED  ///
+/*/  LED  ///  LED  ///  LED  ///
 
 void ledSetup();
 void ledOn();
 void ledOff();
-void ledShowString(char* s);
-void ledShowChar(char c);
+void ledShowString(const char* s);
+void ledShowChar(const char c);*/
 
 ///  GPS  ///  GPS  ///  GPS  ///
-
-#define _GPS_NO_STATS
-#define _GPS_MIN_INFO
-
-#include <SoftwareSerial.h>
-#include "TinyGPS.h"
 
 typedef struct {
   unsigned short nofSatellites;
@@ -25,12 +19,17 @@ typedef struct {
   byte month, day, hour, minute, second;
 } GpsData;
 
+void gpsSetup();
 void gpsWakeUp();
 void gpsShutDown();
 void gpsDelay(const unsigned long ms);
-bool gpsTryReadData(GpsData* data);
+bool gpsTryReadData(const GpsData* data);
+void gpsPrintData(const GpsData* data);
 
 ///  SD   ///  SD   ///  SD   ///
+
+bool sdSetup();
+bool sdWriteData(const char* s);
 
 /// WIFI  /// WIFI  /// WIFI  ///
 
@@ -38,54 +37,34 @@ bool gpsTryReadData(GpsData* data);
 /// SETUP /// SETUP /// SETUP ///
 /////////////////////////////////
 
+bool error = false;
+
 void setup() {
 
   Serial.begin(115200);
-  ledSetup();
+  //ledSetup();
   gpsSetup();
-
-  ledShowString("running");
+  if ((error = !sdSetup())) {
+    Serial.println("Could not setup SD card!");
+    return;
+  }
 
   GpsData data;
   gpsWakeUp();
-  auto success = gpsTryReadData(&data);
+  error = !gpsTryReadData(&data);
   gpsShutDown();
-
-  if (!success)
-    Serial.println("error!");
-  else {
-    Serial.print("GPS result: # satellites: ");
-    Serial.print(data.nofSatellites);
-    Serial.print(" latitude: ");
-    Serial.print(data.latitude);
-    Serial.print(" longitude: ");
-    Serial.print(data.longitude);
-#ifdef _GPS_MIN_INFO
-    Serial.println();
-#else
-    Serial.print(" altitude: ");
-    Serial.println(data.altitude);
-    Serial.print("course: ");
-    Serial.print(data.course);
-    Serial.print(" speed (km/h): ");
-    Serial.print(data.speedKmph);
-    Serial.print(" from home (m): ");
-    Serial.println(data.fromHome);
-#endif
-    Serial.print("date: ");
-    Serial.print(data.year);
-    Serial.print('-');
-    Serial.print(data.month);
-    Serial.print('-');
-    Serial.print(data.day);
-    Serial.print('T');
-    Serial.print(data.hour);
-    Serial.print(':');
-    Serial.print(data.minute);
-    Serial.print(':');
-    Serial.print(data.second);
-    Serial.println('Z');
+  if (error) {
+    Serial.println("Could not read valid GPS data!");
+    return;
   }
+
+  gpsPrintData(&data);
+  Serial.println("GPS printed.");
+  if ((error = !sdWriteData(&data))) {
+    Serial.println("Could not write GPS data!");
+    return;
+  }
+  Serial.println("GPS written.");
 }
 
 /////////////////////////////////
@@ -94,9 +73,11 @@ void setup() {
 
 void loop() {
 
+  if (error)
+    return;
 }
 
-/////////////////////////////////
+/*///////////////////////////////
 ///  LED  ///  LED  ///  LED  ///
 /////////////////////////////////
 
@@ -104,16 +85,14 @@ void loop() {
 #define CHAR_FIRST ('a')
 #define CHAR_LAST ('z')
 const uint8_t morseCodes[] = {
-  /*A*/ (uint8_t)0x70, /*B*/ (uint8_t)0xD5, /*C*/ (uint8_t)0xDD, /*D*/ (uint8_t)0xD4, /*E*/ (uint8_t)0x40, /*F*/ (uint8_t)0x5D,
-  /*G*/ (uint8_t)0xF4, /*H*/ (uint8_t)0x55, /*I*/ (uint8_t)0x50, /*J*/ (uint8_t)0x7F, /*K*/ (uint8_t)0xDC, /*L*/ (uint8_t)0x75,
-  /*M*/ (uint8_t)0xF0, /*N*/ (uint8_t)0xD0, /*O*/ (uint8_t)0xFC, /*P*/ (uint8_t)0x7D, /*Q*/ (uint8_t)0xF7, /*R*/ (uint8_t)0x74,
-  /*S*/ (uint8_t)0x54, /*T*/ (uint8_t)0xC0, /*U*/ (uint8_t)0x5C, /*V*/ (uint8_t)0x57, /*W*/ (uint8_t)0x7C, /*X*/ (uint8_t)0xD7,
-  /*Y*/ (uint8_t)0xDF, /*Z*/ (uint8_t)0xF5
+  (uint8_t)0x70, (uint8_t)0xD5, (uint8_t)0xDD, (uint8_t)0xD4, (uint8_t)0x40, (uint8_t)0x5D, (uint8_t)0xF4, (uint8_t)0x55, (uint8_t)0x50, (uint8_t)0x7F,
+  (uint8_t)0xDC, (uint8_t)0x75, (uint8_t)0xF0, (uint8_t)0xD0, (uint8_t)0xFC, (uint8_t)0x7D, (uint8_t)0xF7, (uint8_t)0x74, (uint8_t)0x54, (uint8_t)0xC0,
+  (uint8_t)0x5C, (uint8_t)0x57, (uint8_t)0x7C, (uint8_t)0xD7, (uint8_t)0xDF, (uint8_t)0xF5
 };
 
 void ledSetup() { pinMode(LED_BUILTIN, OUTPUT); }
 
-void ledOn() {  digitalWrite(LED_BUILTIN, HIGH); }
+void ledOn() { digitalWrite(LED_BUILTIN, HIGH); }
 void ledOff() { digitalWrite(LED_BUILTIN, LOW); }
 
 void ledShowString(const char* s) {
@@ -133,7 +112,7 @@ void ledShowChar(const char c) {
   if (CHAR_FIRST > c || c > CHAR_LAST)
     return;
 
-  auto m = morseCodes[c - CHAR_FIRST];
+  const auto m = morseCodes[c - CHAR_FIRST];
   for (uint8_t i = 0, j = 0b11000000, k = 6; i < 4; i++, j >>= 2, k -= 2) {
     auto n = (m & j) >> k;
     if (n == 0) break;
@@ -142,21 +121,27 @@ void ledShowChar(const char c) {
     delay(MORSE_SPEED * n);
     ledOff();
   }
-}
+}*/
 
 /////////////////////////////////
 ///  GPS  ///  GPS  ///  GPS  ///
 /////////////////////////////////
+
+#define _GPS_NO_STATS
+#define _GPS_MIN_INFO
 
 #define GPS_TX_PIN (A0)
 #define GPS_RX_PIN (A1)
 #define GPS_SYS_ON_PIN (A2)
 #define GPS_ON_OFF_PIN (A3)
 
-#define GPS_CALIBRATION_TIME (20000)
+#define GPS_CALIBRATION_TIME (15000)
 
 #define HOME_LATITUDE (47.16628)
 #define HOME_LONGITUDE (7.63498)
+
+#include <SoftwareSerial.h>
+#include "TinyGPS.h"
 
 SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 TinyGPS gps;
@@ -217,14 +202,14 @@ void gpsShutDown() {
 
 void gpsDelay(const unsigned long ms) {
 
-  const unsigned long start = millis();
+  const auto start = millis();
   do {
     while (gpsSerial.available())
       gps.encode(gpsSerial.read());
   } while (millis() - start < ms);
 }
 
-bool gpsTryReadData(GpsData* data) {
+bool gpsTryReadData(GpsData* const data) {
 
   byte hundreth;
   unsigned long age1, age2;
@@ -251,9 +236,95 @@ bool gpsTryReadData(GpsData* data) {
     && age2 != TinyGPS::GPS_INVALID_AGE;
 }
 
+void gpsPrintData(const GpsData* const data) {
+
+  Serial.print("GPS result: # satellites: ");
+  Serial.print(data->nofSatellites);
+  Serial.print(" latitude: ");
+  Serial.print(data->latitude);
+  Serial.print(" longitude: ");
+  Serial.print(data->longitude);
+#ifdef _GPS_MIN_INFO
+  Serial.println();
+#else
+  Serial.print(" altitude: ");
+  Serial.println(data->altitude);
+  Serial.print("course: ");
+  Serial.print(data->course);
+  Serial.print(" speed (km/h): ");
+  Serial.print(data->speedKmph);
+  Serial.print(" from home (m): ");
+  Serial.println(data->fromHome);
+#endif
+  Serial.print("date: ");
+  Serial.print(data->year);
+  Serial.print('-');
+  Serial.print(data->month);
+  Serial.print('-');
+  Serial.print(data->day);
+  Serial.print('T');
+  Serial.print(data->hour);
+  Serial.print(':');
+  Serial.print(data->minute);
+  Serial.print(':');
+  Serial.print(data->second);
+  Serial.println('Z');
+}
+
 /////////////////////////////////
 ///  SD   ///  SD   ///  SD   ///
 /////////////////////////////////
+
+#define SD_PIN (10)
+#define SD_FILE ("gps.csv")
+
+#include <SD.h>
+
+bool sdSetup() {
+
+  pinMode(SD_PIN, OUTPUT);
+  return SD.begin(SD_PIN);
+}
+
+bool sdWriteData(const GpsData* const data) {
+
+  const auto init = SD.exists(SD_FILE);
+  auto file = SD.open(SD_FILE, FILE_WRITE);
+  if (file);
+  else
+    return false;
+
+  if (!init) {
+    file.print("# Satellites,Latitude,Longitude");
+#ifndef _GPS_MIN_INFO
+    file.print(",Altitude,Course,Speed (km/h),From Home (m)");
+#endif
+    file.println(",Date/Time");
+  }
+
+  char dateTime[20];
+  sprintf(dateTime, "%02d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
+
+  file.print(data->nofSatellites);
+  file.print(',');
+  file.print(data->latitude);
+  file.print(',');
+  file.print(data->longitude);
+  file.print(',');
+#ifndef _GPS_MIN_INFO
+  file.print(data->altitude);
+  file.print(',');
+  file.print(data->course);
+  file.print(',');
+  file.print(data->speedKmph);
+  file.print(',');
+  file.print(data->fromHome);
+  file.print(',');
+#endif
+  file.println(dateTime);
+  file.close();
+  return true;
+}
 
 /////////////////////////////////
 /// WIFI  /// WIFI  /// WIFI  ///
