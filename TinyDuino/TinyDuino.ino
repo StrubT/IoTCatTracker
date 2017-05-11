@@ -1,9 +1,11 @@
 
+#define DEBUG_DISABLE
+
 /**  LED  ***  LED  ***  LED  **/
 
-#define _LED_DISABLED
+#define LED_DISABLED
 
-#ifndef _LED_DISABLED
+#ifndef LED_DISABLED
 
 void ledSetup();
 void ledOn();
@@ -14,19 +16,26 @@ void ledShowChar(const char c);
 
 /**  GPS  ***  GPS  ***  GPS  **/
 
-//#define _GPS_NO_STATS
-#define _GPS_MIN_INFO
+//#define GPS_FLOAT
+#define GPS_NO_STATS
+#define GPS_MIN_INFO
+
+#ifdef GPS_FLOAT
+typedef float GPS_LAT_LONG_ALT_TYPE, GPS_COURSE_SPEED_TYPE;
+#else
+typedef long GPS_LAT_LONG_ALT_TYPE;
+typedef unsigned long GPS_COURSE_SPEED_TYPE;
+#endif
 
 typedef struct {
-#ifndef _GPS_MIN_INFO
-	unsigned short nofSatellites;
-#endif
-	float latitude, longitude;
-#ifndef _GPS_MIN_INFO
-	float altitude, course, speedKmph, fromHomeM;
-#endif
 	int year;
 	byte month, day, hour, minute, second;
+	unsigned short nofSatellites;
+	GPS_LAT_LONG_ALT_TYPE latitude, longitude;
+#ifndef GPS_MIN_INFO
+	GPS_LAT_LONG_ALT_TYPE altitude, fromHomeM;
+	GPS_COURSE_SPEED_TYPE course, speed;
+#endif
 } GpsData;
 
 void gpsSetup();
@@ -34,7 +43,9 @@ void gpsWakeUp();
 void gpsShutDown();
 void gpsDelay(const unsigned long ms);
 bool gpsTryReadData(GpsData* const data);
+#ifndef DEBUG_DISABLE
 void gpsPrintData(const GpsData* const data);
+#endif
 
 /**  SD   ***  SD   ***  SD   **/
 
@@ -51,13 +62,17 @@ bool error = false;
 
 void setup() {
 
+#ifndef DEBUG_DISABLE
 	Serial.begin(115200);
-#ifndef _LED_DISABLED
+#endif
+#ifndef LED_DISABLED
 	ledSetup();
 #endif
 	gpsSetup();
 	if ((error = !sdSetup())) {
+#ifndef DEBUG_DISABLE
 		Serial.println("Could not setup SD card!");
+#endif
 		return;
 	}
 }
@@ -75,24 +90,32 @@ void loop() {
 	gpsWakeUp();
 	//gpsShutDown();
 	if (!gpsTryReadData(&data)) {
+#ifndef DEBUG_DISABLE
 		Serial.println("Could not read valid GPS data!");
+#endif
 		return;
 	}
 
+#ifndef DEBUG_DISABLE
 	gpsPrintData(&data);
 	Serial.println("GPS printed.");
+#endif
 	if ((error = !sdWriteData(&data))) {
+#ifndef DEBUG_DISABLE
 		Serial.println("Could not write GPS data!");
+#endif
 		return;
 	}
+#ifndef DEBUG_DISABLE
 	Serial.println("GPS written.");
+#endif
 }
 
 /********************************
 ***  LED  ***  LED  ***  LED  ***
 ********************************/
 
-#ifndef _LED_DISABLED
+#ifndef LED_DISABLED
 
 #define MORSE_SPEED (100)
 #define CHAR_FIRST ('a')
@@ -148,7 +171,20 @@ void ledShowChar(const char c) {
 #define GPS_ON_OFF_PIN (A3)
 
 #define GPS_CALIBRATION_TIME (15000)
+
+#ifdef GPS_FLOAT
 #define GPS_LAT_LONG_PRECISION (6)
+#define GPS_LAT_LONG_FUNCTION f_get_position
+#define GPS_ALT_FUNCTION f_altitude
+#define GPS_COURSE_FUNCTION f_course
+#define GPS_SPEED_FUNCTION f_speed_kmph
+#else
+#define GPS_LAT_LONG_PRECISION (10)
+#define GPS_LAT_LONG_FUNCTION get_position
+#define GPS_ALT_FUNCTION altitude
+#define GPS_COURSE_FUNCTION course
+#define GPS_SPEED_FUNCTION speed
+#endif
 
 #define HOME_LATITUDE (47.16628)
 #define HOME_LONGITUDE (7.63498)
@@ -171,21 +207,28 @@ void gpsSetup() {
 
 void gpsWakeUp() {
 
+#ifndef DEBUG_DISABLE
 	Serial.print("Waking up GPS module..");
+#endif
 	while (digitalRead(GPS_SYS_ON_PIN) == LOW) {
+#ifndef DEBUG_DISABLE
 		Serial.print(".");
+#endif
 		digitalWrite(GPS_ON_OFF_PIN, HIGH);
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, LOW);
 		delay(100);
 	}
+#ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 
 	Serial.print("Calibrating GPS module...");
+#endif
 	gpsDelay(GPS_CALIBRATION_TIME);
+#ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 
-#ifndef _GPS_NO_STATS
+#ifndef GPS_NO_STATS
 	unsigned long encodedChars;
 	unsigned short goodSentences, failedChecksums;
 	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
@@ -198,19 +241,26 @@ void gpsWakeUp() {
 	Serial.print(failedChecksums);
 	Serial.println('.');
 #endif
+#endif
 }
 
 void gpsShutDown() {
 
+#ifndef DEBUG_DISABLE
 	Serial.print("Shutting down GPS module..");
+#endif
 	while (digitalRead(GPS_SYS_ON_PIN) == HIGH) {
+#ifndef DEBUG_DISABLE
 		Serial.print(".");
+#endif
 		digitalWrite(GPS_ON_OFF_PIN, LOW);
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, HIGH);
 		delay(100);
 	}
+#ifndef DEBUG_DISABLE
 	Serial.println(" done.");
+#endif
 }
 
 void gpsDelay(const unsigned long ms) {
@@ -227,29 +277,34 @@ bool gpsTryReadData(GpsData* const data) {
 	byte hundreth;
 	unsigned long age1, age2;
 
-	gps.f_get_position(&data->latitude, &data->longitude, &age1);
-	gps.crack_datetime(&data->year, &data->month, &data->day, &data->hour, &data->minute, &data->second, &hundreth, &age2);
-#ifndef _GPS_MIN_INFO
+	gps.crack_datetime(&data->year, &data->month, &data->day, &data->hour, &data->minute, &data->second, &hundreth, &age1);
 	data->nofSatellites = gps.satellites();
-	data->altitude = gps.f_altitude();
-	data->course = gps.f_course();
-	data->speedKmph = gps.f_speed_kmph();
+	gps.GPS_LAT_LONG_FUNCTION(&data->latitude, &data->longitude, &age2);
+
+#ifndef GPS_MIN_INFO
+	data->altitude = gps.GPS_ALT_FUNCTION();
+	data->course = gps.GPS_COURSE_FUNCTION();
+	data->speed = gps.GPS_SPEED_FUNCTION();
+
+#ifdef GPS_FLOAT
 	data->fromHomeM = gps.distance_between(data->latitude, data->longitude, HOME_LATITUDE, HOME_LONGITUDE);
 #endif
+#endif
 
-	return data->latitude != TinyGPS::GPS_INVALID_F_ANGLE
-		&& data->longitude != TinyGPS::GPS_INVALID_F_ANGLE
-		&& age1 != TinyGPS::GPS_INVALID_AGE
-		&& age2 != TinyGPS::GPS_INVALID_AGE
-#ifndef _GPS_MIN_INFO
+	return age1 != TinyGPS::GPS_INVALID_AGE
 		&& data->nofSatellites != TinyGPS::GPS_INVALID_SATELLITES
+		&& data->latitude != TinyGPS::GPS_INVALID_F_ANGLE
+		&& data->longitude != TinyGPS::GPS_INVALID_F_ANGLE
+		&& age2 != TinyGPS::GPS_INVALID_AGE
+#ifndef GPS_MIN_INFO
 		&& data->altitude != TinyGPS::GPS_INVALID_F_ALTITUDE
 		&& data->course != TinyGPS::GPS_INVALID_F_ANGLE
-		&& data->speedKmph != TinyGPS::GPS_INVALID_F_SPEED
+		&& data->speed != TinyGPS::GPS_INVALID_F_SPEED
 #endif
 		;
 }
 
+#ifndef DEBUG_DISABLE
 void gpsPrintData(const GpsData* const data) {
 
 	char dateTime[20];
@@ -257,24 +312,30 @@ void gpsPrintData(const GpsData* const data) {
 
 	Serial.print("Date/time: ");
 	Serial.print(dateTime);
+	Serial.print(" # satellites: ");
+	Serial.print(data->nofSatellites);
 	Serial.print(" latitude: ");
 	Serial.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	Serial.print(" longitude: ");
 	Serial.print(data->longitude, GPS_LAT_LONG_PRECISION);
-#ifndef _GPS_MIN_INFO
+#ifndef GPS_MIN_INFO
 	Serial.print(" altitude: ");
 	Serial.print(data->altitude);
 	Serial.print(" course: ");
 	Serial.print(data->course);
+#ifndef GPS_FLOAT
+	Serial.print(" speed (kt/100): ");
+	Serial.print(data->speed);
+#else
 	Serial.print(" speed (km/h): ");
-	Serial.print(data->speedKmph);
+	Serial.print(data->speed);
 	Serial.print(" from home (m): ");
 	Serial.print(data->fromHomeM);
-	Serial.print(" # satellites: ");
-	Serial.print(data->nofSatellites);
+#endif
 #endif
 	Serial.println();
 }
+#endif
 
 /********************************
 ***  SD   ***  SD   ***  SD   ***
@@ -299,33 +360,36 @@ bool sdWriteData(const GpsData* const data) {
 	else
 		return false;
 
-	if (!init) {
-		file.print("Date/Time,Latitude,Longitude");
-#ifndef _GPS_MIN_INFO
-		file.print(",Altitude,Course,Speed (km/h),From Home (m),# Satellites");
-#endif
-		file.println();
-	}
+	if (!init)
+		file.println("Date/Time,# Satellites,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
 
 	char dateTime[20];
 	sprintf(dateTime, "%02d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
 
 	file.print(dateTime);
 	file.print(',');
+	file.print(data->nofSatellites);
+	file.print(',');
 	file.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	file.print(',');
 	file.print(data->longitude, GPS_LAT_LONG_PRECISION);
 	file.print(',');
-#ifndef _GPS_MIN_INFO
+#ifndef GPS_MIN_INFO
 	file.print(data->altitude);
 	file.print(',');
 	file.print(data->course);
+#ifdef GPS_FLOAT
 	file.print(',');
-	file.print(data->speedKmph);
+#endif
+	file.print(',');
+	file.print(data->speed);
+#ifndef GPS_FLOAT
+	file.print(',');
+#endif
+#ifdef GPS_FLOAT
 	file.print(',');
 	file.print(data->fromHomeM);
-	file.print(',');
-	file.print(data->nofSatellites);
+#endif
 #endif
 	file.println();
 	file.close();
@@ -335,4 +399,3 @@ bool sdWriteData(const GpsData* const data) {
 /********************************
 *** WIFI  *** WIFI  *** WIFI  ***
 ********************************/
-
