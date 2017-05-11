@@ -6,7 +6,6 @@
 #define LED_DISABLED
 
 #ifndef LED_DISABLED
-
 void ledSetup();
 void ledOn();
 void ledOff();
@@ -186,8 +185,8 @@ void ledShowChar(const char c) {
 #define GPS_SPEED_FUNCTION speed
 #endif
 
-#define HOME_LATITUDE (47.16628)
-#define HOME_LONGITUDE (7.63498)
+#define HOME_LATITUDE (47.166320)
+#define HOME_LONGITUDE (7.635007)
 
 #include <SoftwareSerial.h>
 #include "TinyGPS.h"
