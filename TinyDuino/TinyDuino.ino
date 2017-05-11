@@ -16,7 +16,7 @@ void ledShowChar(const char c);
 /**  GPS  ***  GPS  ***  GPS  **/
 
 //#define GPS_FLOAT
-#define GPS_NO_STATS
+#define _GPS_NO_STATS
 #define GPS_MIN_INFO
 
 #ifdef GPS_FLOAT
@@ -181,15 +181,23 @@ void ledShowChar(const char c) {
 
 #ifdef GPS_FLOAT
 #define GPS_LAT_LONG_PRECISION (6)
+#define GPS_LAT_LONG_INVALID (TinyGPS::GPS_INVALID_ANGLE)
 #define GPS_LAT_LONG_FUNCTION f_get_position
+#define GPS_ALT_INVALID (TinyGPS::GPS_INVALID_ALTITUDE)
 #define GPS_ALT_FUNCTION f_altitude
+#define GPS_COURSE_INVALID (TinyGPS::GPS_INVALID_ANGLE)
 #define GPS_COURSE_FUNCTION f_course
+#define GPS_SPEED_INVALID (TinyGPS::GPS_INVALID_SPEED)
 #define GPS_SPEED_FUNCTION f_speed_kmph
 #else
 #define GPS_LAT_LONG_PRECISION (10)
+#define GPS_LAT_LONG_INVALID (TinyGPS::GPS_INVALID_F_ANGLE)
 #define GPS_LAT_LONG_FUNCTION get_position
+#define GPS_ALT_INVALID (TinyGPS::GPS_INVALID_F_ALTITUDE)
 #define GPS_ALT_FUNCTION altitude
+#define GPS_COURSE_INVALID (TinyGPS::GPS_INVALID_F_ANGLE)
 #define GPS_COURSE_FUNCTION course
+#define GPS_SPEED_INVALID (TinyGPS::GPS_INVALID_F_SPEED)
 #define GPS_SPEED_FUNCTION speed
 #endif
 
@@ -235,7 +243,7 @@ void gpsWakeUp() {
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 
-#ifndef GPS_NO_STATS
+#ifndef _GPS_NO_STATS
 	unsigned long encodedChars;
 	unsigned short goodSentences, failedChecksums;
 	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
@@ -300,13 +308,13 @@ bool gpsTryReadData(GpsData* const data) {
 
 	return age1 != TinyGPS::GPS_INVALID_AGE
 		&& data->nofSatellites != TinyGPS::GPS_INVALID_SATELLITES
-		&& data->latitude != TinyGPS::GPS_INVALID_F_ANGLE
-		&& data->longitude != TinyGPS::GPS_INVALID_F_ANGLE
+		&& data->latitude != GPS_LAT_LONG_INVALID
+		&& data->longitude != GPS_LAT_LONG_INVALID
 		&& age2 != TinyGPS::GPS_INVALID_AGE
 #ifndef GPS_MIN_INFO
-		&& data->altitude != TinyGPS::GPS_INVALID_F_ALTITUDE
-		&& data->course != TinyGPS::GPS_INVALID_F_ANGLE
-		&& data->speed != TinyGPS::GPS_INVALID_F_SPEED
+		&& data->altitude != GPS_ALT_INVALID
+		&& data->course != GPS_COURSE_INVALID
+		&& data->speed != GPS_SPEED_INVALID
 #endif
 		;
 }
@@ -371,7 +379,7 @@ bool sdWriteData(const GpsData* const data) {
 		file.println("Date/Time,# Satellites,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
 
 	char dateTime[20];
-	sprintf(dateTime, "%02d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
+	sprintf(dateTime, "%04d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
 
 	file.print(dateTime);
 	file.print(',');
