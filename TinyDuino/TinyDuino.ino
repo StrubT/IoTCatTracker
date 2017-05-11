@@ -74,6 +74,10 @@ void setup() {
 #endif
 		return;
 	}
+
+#ifndef LED_DISABLED
+	ledShowString("running");
+#endif
 }
 
 /********************************
@@ -107,6 +111,10 @@ void loop() {
 	}
 #ifndef DEBUG_DISABLE
 	Serial.println("GPS written.");
+#endif
+
+#ifndef LED_DISABLED
+	ledShowString("logged");
 #endif
 }
 
@@ -372,8 +380,8 @@ bool sdWriteData(const GpsData* const data) {
 	file.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	file.print(',');
 	file.print(data->longitude, GPS_LAT_LONG_PRECISION);
-	file.print(',');
 #ifndef GPS_MIN_INFO
+	file.print(',');
 	file.print(data->altitude);
 	file.print(',');
 	file.print(data->course);
