@@ -225,7 +225,7 @@ void gpsWakeUp() {
 #ifndef DEBUG_DISABLE
 	Serial.print("Waking up GPS module..");
 #endif
-	while (digitalRead(GPS_SYS_ON_PIN) == LOW) {
+	do {
 #ifndef DEBUG_DISABLE
 		Serial.print(".");
 #endif
@@ -233,7 +233,7 @@ void gpsWakeUp() {
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, LOW);
 		delay(100);
-	}
+	} while (digitalRead(GPS_SYS_ON_PIN) == LOW);
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 
@@ -264,7 +264,7 @@ void gpsShutDown() {
 #ifndef DEBUG_DISABLE
 	Serial.print("Shutting down GPS module..");
 #endif
-	while (digitalRead(GPS_SYS_ON_PIN) == HIGH) {
+	do {
 #ifndef DEBUG_DISABLE
 		Serial.print(".");
 #endif
@@ -272,7 +272,7 @@ void gpsShutDown() {
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, HIGH);
 		delay(100);
-	}
+	} while (digitalRead(GPS_SYS_ON_PIN) == HIGH);
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 #endif
