@@ -30,6 +30,7 @@ typedef struct {
 	int year;
 	byte month, day, hour, minute, second;
 	unsigned short nofSatellites;
+	unsigned long hdop;
 	GpsLatLongAltType latitude, longitude;
 #ifndef GPS_MIN_INFO
 	GpsLatLongAltType altitude, fromHomeM;
@@ -287,6 +288,7 @@ bool gpsTryReadData(GpsData* const data) {
 
 	gps.crack_datetime(&data->year, &data->month, &data->day, &data->hour, &data->minute, &data->second, &hundreth, &age1);
 	data->nofSatellites = gps.satellites();
+	data->hdop = gps.hdop();
 	gps.GPS_LAT_LONG_FUNCTION(&data->latitude, &data->longitude, &age2);
 
 #ifndef GPS_MIN_INFO
@@ -301,6 +303,7 @@ bool gpsTryReadData(GpsData* const data) {
 
 	return age1 != TinyGPS::GPS_INVALID_AGE
 		&& data->nofSatellites != TinyGPS::GPS_INVALID_SATELLITES
+		&& data->hdop != TinyGPS::GPS_INVALID_HDOP
 		&& data->latitude != GPS_LAT_LONG_INVALID
 		&& data->longitude != GPS_LAT_LONG_INVALID
 		&& age2 != TinyGPS::GPS_INVALID_AGE
@@ -322,6 +325,8 @@ void gpsPrintData(const GpsData* const data) {
 	Serial.print(dateTime);
 	Serial.print(" # satellites: ");
 	Serial.print(data->nofSatellites);
+	Serial.print(" horizontal DOP: ");
+	Serial.print(data->hdop);
 	Serial.print(" latitude: ");
 	Serial.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	Serial.print(" longitude: ");
@@ -386,7 +391,7 @@ bool sdWriteData(const GpsData* const data) {
 		return false;
 
 	if (!init)
-		file.println("Date/Time,# Satellites,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
+		file.println("Date/Time,# Satellites,Horizontal DOP,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
 
 	char dateTime[20];
 	sprintf(dateTime, "%04d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
@@ -394,6 +399,8 @@ bool sdWriteData(const GpsData* const data) {
 	file.print(dateTime);
 	file.print(',');
 	file.print(data->nofSatellites);
+	file.print(',');
+	file.print(data->hdop);
 	file.print(',');
 	file.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	file.print(',');
