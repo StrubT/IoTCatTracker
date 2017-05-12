@@ -105,7 +105,11 @@ void loop() {
 
 	//gpsShutDown();
 
+#ifndef DEBUG_DISABLE
+#ifndef _GPS_NO_STATS
 	gpsPrintStatistics();
+#endif
+#endif
 
 	GpsData data;
 	if (!gpsTryReadData(&data)) {
@@ -228,9 +232,9 @@ void gpsSetup() {
 
 	gpsSerial.begin(9600);
 
-	digitalWrite(GPS_ON_OFF_PIN, LOW);
-	pinMode(GPS_ON_OFF_PIN, OUTPUT);
 	pinMode(GPS_SYS_ON_PIN, INPUT);
+	pinMode(GPS_ON_OFF_PIN, OUTPUT);
+	digitalWrite(GPS_ON_OFF_PIN, LOW);
 	delay(100);
 }
 
