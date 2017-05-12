@@ -44,6 +44,9 @@ void gpsDelay(const unsigned long ms);
 bool gpsTryReadData(GpsData* const data);
 #ifndef DEBUG_DISABLE
 void gpsPrintData(const GpsData* const data);
+#ifndef _GPS_NO_STATS
+void gpsPrintStatistics();
+#endif
 #endif
 
 /**  SD   ***  SD   ***  SD   **/
@@ -89,9 +92,21 @@ void loop() {
 	if (error)
 		return;
 
-	GpsData data;
 	gpsWakeUp();
+
+#ifndef DEBUG_DISABLE
+	Serial.print("Reading GPS data...");
+#endif
+	gpsDelay(29000);
+#ifndef DEBUG_DISABLE
+	Serial.println(" done.");
+#endif
+
 	//gpsShutDown();
+
+	gpsPrintStatistics();
+
+	GpsData data;
 	if (!gpsTryReadData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not read valid GPS data!");
@@ -177,8 +192,6 @@ void ledShowChar(const char c) {
 #define GPS_SYS_ON_PIN (A2)
 #define GPS_ON_OFF_PIN (A3)
 
-#define GPS_CALIBRATION_TIME (15000)
-
 #ifdef GPS_FLOAT
 #define GPS_LAT_LONG_PRECISION (6)
 #define GPS_LAT_LONG_INVALID (TinyGPS::GPS_INVALID_ANGLE)
@@ -236,26 +249,6 @@ void gpsWakeUp() {
 	} while (digitalRead(GPS_SYS_ON_PIN) == LOW);
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
-
-	Serial.print("Calibrating GPS module...");
-#endif
-	gpsDelay(GPS_CALIBRATION_TIME);
-#ifndef DEBUG_DISABLE
-	Serial.println(" done.");
-
-#ifndef _GPS_NO_STATS
-	unsigned long encodedChars;
-	unsigned short goodSentences, failedChecksums;
-	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
-
-	Serial.print("GPS statistics: chars: ");
-	Serial.print(encodedChars);
-	Serial.print(", good sentences: ");
-	Serial.print(goodSentences);
-	Serial.print(", failed checksums: ");
-	Serial.print(failedChecksums);
-	Serial.println('.');
-#endif
 #endif
 }
 
@@ -350,6 +343,23 @@ void gpsPrintData(const GpsData* const data) {
 #endif
 	Serial.println();
 }
+
+#ifndef _GPS_NO_STATS
+void gpsPrintStatistics() {
+
+	unsigned long encodedChars;
+	unsigned short goodSentences, failedChecksums;
+	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
+
+	Serial.print("GPS statistics: chars: ");
+	Serial.print(encodedChars);
+	Serial.print(", good sentences: ");
+	Serial.print(goodSentences);
+	Serial.print(", failed checksums: ");
+	Serial.print(failedChecksums);
+	Serial.println('.');
+}
+#endif
 #endif
 
 /********************************
