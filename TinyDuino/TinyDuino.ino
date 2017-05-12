@@ -71,7 +71,7 @@ void setup() {
 	ledSetup();
 #endif
 	gpsSetup();
-	if ((error = !sdSetup())) {
+	if (error = !sdSetup()) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not setup SD card!");
 #endif
@@ -118,7 +118,7 @@ void loop() {
 	gpsPrintData(&data);
 	Serial.println("GPS printed.");
 #endif
-	if ((error = !sdWriteData(&data))) {
+	if (error = !sdWriteData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not write GPS data!");
 #endif
