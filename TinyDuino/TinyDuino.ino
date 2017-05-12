@@ -1,5 +1,5 @@
 
-#define DEBUG_DISABLE
+//#define DEBUG_DISABLE
 
 /**  LED  ***  LED  ***  LED  **/
 
@@ -15,9 +15,9 @@ void ledShowChar(const char c);
 
 /**  GPS  ***  GPS  ***  GPS  **/
 
-//#define GPS_FLOAT
-#define _GPS_NO_STATS
-#define GPS_MIN_INFO
+#define GPS_FLOAT
+//#define _GPS_NO_STATS
+//#define GPS_MIN_INFO
 
 #ifdef GPS_FLOAT
 typedef float GpsLatLongAltType, GpsCourseSpeedType;
