@@ -20,20 +20,20 @@ void ledShowChar(const char c);
 #define GPS_MIN_INFO
 
 #ifdef GPS_FLOAT
-typedef float GPS_LAT_LONG_ALT_TYPE, GPS_COURSE_SPEED_TYPE;
+typedef float GpsLatLongAltType, GpsCourseSpeedType;
 #else
-typedef long GPS_LAT_LONG_ALT_TYPE;
-typedef unsigned long GPS_COURSE_SPEED_TYPE;
+typedef long GpsLatLongAltType;
+typedef unsigned long GpsCourseSpeedType;
 #endif
 
 typedef struct {
 	int year;
 	byte month, day, hour, minute, second;
 	unsigned short nofSatellites;
-	GPS_LAT_LONG_ALT_TYPE latitude, longitude;
+	GpsLatLongAltType latitude, longitude;
 #ifndef GPS_MIN_INFO
-	GPS_LAT_LONG_ALT_TYPE altitude, fromHomeM;
-	GPS_COURSE_SPEED_TYPE course, speed;
+	GpsLatLongAltType altitude, fromHomeM;
+	GpsCourseSpeedType course, speed;
 #endif
 } GpsData;
 
