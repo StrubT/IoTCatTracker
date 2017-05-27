@@ -52,8 +52,12 @@ void gpsPrintStatistics();
 
 /**  SD   ***  SD   ***  SD   **/
 
+//#define SD_DISABLED
+
+#ifndef SD_DISABLED
 bool sdSetup();
 bool sdWriteData(const GpsData* const data);
+#endif
 
 /** WIFI  *** WIFI  *** WIFI  **/
 
@@ -68,19 +72,24 @@ void setup() {
 #ifndef DEBUG_DISABLE
 	Serial.begin(115200);
 #endif
+
 #ifndef LED_DISABLED
 	ledSetup();
 #endif
+
 	gpsSetup();
+
+#ifndef SD_DISABLED
 	if (error = !sdSetup()) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not setup SD card!");
 #endif
 		return;
 	}
+#endif
 
 #ifndef LED_DISABLED
-	ledShowString("running");
+	ledShowString("l"); // . - . .
 #endif
 }
 
@@ -112,9 +121,12 @@ void loop() {
 #endif
 
 	GpsData data;
-	if (!gpsTryReadData(&data)) {
+	if (/*error =*/ !gpsTryReadData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not read valid GPS data!");
+#endif
+#ifndef LED_DISABLED
+		ledShowString("p"); // . - - .
 #endif
 		return;
 	}
@@ -123,18 +135,24 @@ void loop() {
 	gpsPrintData(&data);
 	Serial.println("GPS printed.");
 #endif
-	if (error = !sdWriteData(&data)) {
+
+#ifndef SD_DISABLED
+	if (/*error =*/ !sdWriteData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not write GPS data!");
+#endif
+#ifndef LED_DISABLED
+		ledShowString("p"); // . - - .
 #endif
 		return;
 	}
 #ifndef DEBUG_DISABLE
 	Serial.println("GPS written.");
 #endif
+#endif
 
 #ifndef LED_DISABLED
-	ledShowString("logged");
+	ledShowString("q"); // - - . -
 #endif
 }
 
@@ -241,9 +259,9 @@ void gpsSetup() {
 void gpsWakeUp() {
 
 #ifndef DEBUG_DISABLE
-	Serial.print("Waking up GPS module..");
+	Serial.print("Waking up GPS module...");
 #endif
-	do {
+	while (digitalRead(GPS_SYS_ON_PIN) == LOW) {
 #ifndef DEBUG_DISABLE
 		Serial.print(".");
 #endif
@@ -251,7 +269,7 @@ void gpsWakeUp() {
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, LOW);
 		delay(100);
-	} while (digitalRead(GPS_SYS_ON_PIN) == LOW);
+	}
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 #endif
@@ -260,9 +278,9 @@ void gpsWakeUp() {
 void gpsShutDown() {
 
 #ifndef DEBUG_DISABLE
-	Serial.print("Shutting down GPS module..");
+	Serial.print("Shutting down GPS module...");
 #endif
-	do {
+	while (digitalRead(GPS_SYS_ON_PIN) == HIGH) {
 #ifndef DEBUG_DISABLE
 		Serial.print(".");
 #endif
@@ -270,7 +288,7 @@ void gpsShutDown() {
 		delay(5);
 		digitalWrite(GPS_ON_OFF_PIN, HIGH);
 		delay(100);
-	} while (digitalRead(GPS_SYS_ON_PIN) == HIGH);
+	}
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 #endif
@@ -375,6 +393,8 @@ void gpsPrintStatistics() {
 ***  SD   ***  SD   ***  SD   ***
 ********************************/
 
+#ifndef SD_DISABLED
+
 #define SD_PIN (10)
 #define SD_FILE ("gps.csv")
 
@@ -431,6 +451,7 @@ bool sdWriteData(const GpsData* const data) {
 	file.close();
 	return true;
 }
+#endif
 
 /********************************
 *** WIFI  *** WIFI  *** WIFI  ***
