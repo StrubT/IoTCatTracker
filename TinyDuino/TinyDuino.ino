@@ -1,94 +1,98 @@
 
-///  LED  ///  LED  ///  LED  ///
+/**  LED  ***  LED  ***  LED  **/
 
-void ledSetup();
-void ledOn();
-void ledOff();
-void ledShowString(char* s);
-void ledShowChar(char c);
+/**  GPS  ***  GPS  ***  GPS  **/
 
-///  GPS  ///  GPS  ///  GPS  ///
+/**  SD   ***  SD   ***  SD   **/
 
-///  SD   ///  SD   ///  SD   ///
+/** WIFI  *** WIFI  *** WIFI  **/
 
-/// WIFI  /// WIFI  /// WIFI  ///
+#include <SPI.h>
+#include <WiFi101.h>
+#include <MQTTClient.h>
 
-/////////////////////////////////
-/// SETUP /// SETUP /// SETUP ///
-/////////////////////////////////
+/********************************
+*** SETUP *** SETUP *** SETUP ***
+********************************/
 
 void setup() {
 
-  Serial.begin(115200);
-  ledSetup();
-
-  ledShowString("running");
+	Serial.begin(115200);
+	wifiSetup();
 }
 
-/////////////////////////////////
-/// LOOP  /// LOOP  /// LOOP  ///
-/////////////////////////////////
+/********************************
+*** LOOP  *** LOOP  *** LOOP  ***
+********************************/
+
 
 void loop() {
 
+	wifiConnect() && mqttConnect() && mqttPublish("Hi there.");
+	delay(10000);
 }
 
-/////////////////////////////////
-///  LED  ///  LED  ///  LED  ///
-/////////////////////////////////
+/********************************
+***  LED  ***  LED  ***  LED  ***
+********************************/
 
-const int32_t morseSpeed = 100;
-const int32_t charMin = 'a';
-const int32_t charMax = 'z';
-const int32_t morse[26][4] = {
-  /*A*/ { 1, 3 },       /*B*/ { 3, 1, 1, 1 }, /*C*/ { 3, 1, 3, 1 }, /*D*/ { 3, 1, 1 },    /*E*/ { 1 },
-  /*F*/ { 1, 1, 3, 1 }, /*G*/ { 3, 3, 1 },    /*H*/ { 1, 1, 1, 1 }, /*I*/ { 1, 1 },       /*J*/ { 1, 3, 3, 3 },
-  /*K*/ { 3, 1, 3 },    /*L*/ { 1, 3, 1, 1 }, /*M*/ { 3, 3 },       /*N*/ { 3, 1 },       /*O*/ { 3, 3, 3 },
-  /*P*/ { 1, 3, 3, 1 }, /*Q*/ { 3, 3, 1, 3 }, /*R*/ { 1, 3, 1 },    /*S*/ { 1, 1, 1 },    /*T*/ { 3 },
-  /*U*/ { 1, 1, 3 },    /*V*/ { 1, 1, 1, 3 }, /*W*/ { 1, 3, 3 },    /*X*/ { 3, 1, 1, 3 }, /*Y*/ { 3, 1, 3, 3 },
-  /*Z*/ { 3, 3, 1, 1 }
-};
+/********************************
+***  GPS  ***  GPS  ***  GPS  ***
+********************************/
 
-void ledSetup() { pinMode(LED_BUILTIN, OUTPUT); }
+/********************************
+***  SD   ***  SD   ***  SD   ***
+********************************/
 
-void ledOn() {  digitalWrite(LED_BUILTIN, HIGH); }
-void ledOff() { digitalWrite(LED_BUILTIN, LOW); }
+/********************************
+*** WIFI  *** WIFI  *** WIFI  ***
+********************************/
 
-void ledShowString(const char *s) {
+const char * const ssid = "visitor-76437";
+const char * const pass = "12ab34cd";
+int status = WL_IDLE_STATUS;
 
-  for (auto i = 0; s[i] != 0; i++) {
-    if (s[i] == ' ')
-      delay(morseSpeed * (7 - 3)); //exclude the next three units
-    else {
-      if (i > 0) delay(morseSpeed * 3);
-      ledShowChar(s[i]);
-    }
-  }
+WiFiClient net;
+MQTTClient client;
+
+void wifiSetup() { WiFi.setPins(8, 2, A3, -1); }
+
+bool wifiConnect() {
+
+	if ((status = WiFi.status()) == WL_NO_SHIELD) {
+		Serial.println("WiFi shield not present!");
+		while (true);
+	}
+
+	if (status == WL_CONNECTED) return true;
+
+	Serial.print("Attempting to connect to WPA SSID: ");
+	Serial.println(ssid);
+	status = WiFi.begin(ssid, pass);
+
+	if (status != WL_CONNECTED) return false;
+
+	Serial.println("You're connected to the network.");
+	return true;
 }
 
-void ledShowChar(const char c) {
+bool mqttConnect() {
 
-  if (charMin > c || c > charMax)
-    return;
+	if (client.connected()) return true;
 
-  auto m = morse[c - charMin];
-  for (auto i = 0; i < 4 && m[i] != 0; i++) {
-    if (i > 0) delay(morseSpeed);
-    ledOn();
-    delay(morseSpeed * m[i]);
-    ledOff();
-  }
+	if (!client.begin("siot.net", net))	return false;
+	if (client.connect("TinyDuino")) return false;
+
+	Serial.println("You're connected to the MQTT server.");
+	return true;
 }
 
-/////////////////////////////////
-///  GPS  ///  GPS  ///  GPS  ///
-/////////////////////////////////
+bool mqttPublish(const char * const message) {
 
-/////////////////////////////////
-///  SD   ///  SD   ///  SD   ///
-/////////////////////////////////
+	if (!client.publish("siot/DAT/F386-09CA-1F9F-9A1F-BAD3-F573-64A0-2A22/14760cc8-4cea-c63c-a825-cef162c16146", message)) return false;
 
-/////////////////////////////////
-/// WIFI  /// WIFI  /// WIFI  ///
-/////////////////////////////////
+	Serial.println("You've successfully published a MQTT message.");
+	return true;
+}
 
+void messageReceived(String topic, String payload, char * bytes, unsigned int length) {}
