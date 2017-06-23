@@ -1,5 +1,5 @@
 
-#define DEBUG_DISABLE
+//#define DEBUG_DISABLE
 
 /**  LED  ***  LED  ***  LED  **/
 
@@ -15,25 +15,26 @@ void ledShowChar(const char c);
 
 /**  GPS  ***  GPS  ***  GPS  **/
 
-//#define GPS_FLOAT
-#define _GPS_NO_STATS
-#define GPS_MIN_INFO
+#define GPS_FLOAT
+//#define _GPS_NO_STATS
+//#define GPS_MIN_INFO
 
 #ifdef GPS_FLOAT
-typedef float GPS_LAT_LONG_ALT_TYPE, GPS_COURSE_SPEED_TYPE;
+typedef float GpsLatLongAltType, GpsCourseSpeedType;
 #else
-typedef long GPS_LAT_LONG_ALT_TYPE;
-typedef unsigned long GPS_COURSE_SPEED_TYPE;
+typedef long GpsLatLongAltType;
+typedef unsigned long GpsCourseSpeedType;
 #endif
 
 typedef struct {
 	int year;
 	byte month, day, hour, minute, second;
 	unsigned short nofSatellites;
-	GPS_LAT_LONG_ALT_TYPE latitude, longitude;
+	unsigned long hdop;
+	GpsLatLongAltType latitude, longitude;
 #ifndef GPS_MIN_INFO
-	GPS_LAT_LONG_ALT_TYPE altitude, fromHomeM;
-	GPS_COURSE_SPEED_TYPE course, speed;
+	GpsLatLongAltType altitude, fromHomeM;
+	GpsCourseSpeedType course, speed;
 #endif
 } GpsData;
 
@@ -44,12 +45,19 @@ void gpsDelay(const unsigned long ms);
 bool gpsTryReadData(GpsData* const data);
 #ifndef DEBUG_DISABLE
 void gpsPrintData(const GpsData* const data);
+#ifndef _GPS_NO_STATS
+void gpsPrintStatistics();
+#endif
 #endif
 
 /**  SD   ***  SD   ***  SD   **/
 
+//#define SD_DISABLED
+
+#ifndef SD_DISABLED
 bool sdSetup();
 bool sdWriteData(const GpsData* const data);
+#endif
 
 /** WIFI  *** WIFI  *** WIFI  **/
 
@@ -64,19 +72,24 @@ void setup() {
 #ifndef DEBUG_DISABLE
 	Serial.begin(115200);
 #endif
+
 #ifndef LED_DISABLED
 	ledSetup();
 #endif
+
 	gpsSetup();
-	if ((error = !sdSetup())) {
+
+#ifndef SD_DISABLED
+	if (error = !sdSetup()) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not setup SD card!");
 #endif
 		return;
 	}
+#endif
 
 #ifndef LED_DISABLED
-	ledShowString("running");
+	ledShowString("l"); // . - . .
 #endif
 }
 
@@ -89,12 +102,31 @@ void loop() {
 	if (error)
 		return;
 
-	GpsData data;
 	gpsWakeUp();
+
+#ifndef DEBUG_DISABLE
+	Serial.print("Reading GPS data...");
+#endif
+	gpsDelay(29000);
+#ifndef DEBUG_DISABLE
+	Serial.println(" done.");
+#endif
+
 	//gpsShutDown();
-	if (!gpsTryReadData(&data)) {
+
+#ifndef DEBUG_DISABLE
+#ifndef _GPS_NO_STATS
+	gpsPrintStatistics();
+#endif
+#endif
+
+	GpsData data;
+	if (/*error =*/ !gpsTryReadData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not read valid GPS data!");
+#endif
+#ifndef LED_DISABLED
+		ledShowString("p"); // . - - .
 #endif
 		return;
 	}
@@ -103,18 +135,24 @@ void loop() {
 	gpsPrintData(&data);
 	Serial.println("GPS printed.");
 #endif
-	if ((error = !sdWriteData(&data))) {
+
+#ifndef SD_DISABLED
+	if (/*error =*/ !sdWriteData(&data)) {
 #ifndef DEBUG_DISABLE
 		Serial.println("Could not write GPS data!");
+#endif
+#ifndef LED_DISABLED
+		ledShowString("p"); // . - - .
 #endif
 		return;
 	}
 #ifndef DEBUG_DISABLE
 	Serial.println("GPS written.");
 #endif
+#endif
 
 #ifndef LED_DISABLED
-	ledShowString("logged");
+	ledShowString("q"); // - - . -
 #endif
 }
 
@@ -177,8 +215,6 @@ void ledShowChar(const char c) {
 #define GPS_SYS_ON_PIN (A2)
 #define GPS_ON_OFF_PIN (A3)
 
-#define GPS_CALIBRATION_TIME (15000)
-
 #ifdef GPS_FLOAT
 #define GPS_LAT_LONG_PRECISION (6)
 #define GPS_LAT_LONG_INVALID (TinyGPS::GPS_INVALID_ANGLE)
@@ -214,16 +250,16 @@ void gpsSetup() {
 
 	gpsSerial.begin(9600);
 
-	digitalWrite(GPS_ON_OFF_PIN, LOW);
-	pinMode(GPS_ON_OFF_PIN, OUTPUT);
 	pinMode(GPS_SYS_ON_PIN, INPUT);
+	pinMode(GPS_ON_OFF_PIN, OUTPUT);
+	digitalWrite(GPS_ON_OFF_PIN, LOW);
 	delay(100);
 }
 
 void gpsWakeUp() {
 
 #ifndef DEBUG_DISABLE
-	Serial.print("Waking up GPS module..");
+	Serial.print("Waking up GPS module...");
 #endif
 	while (digitalRead(GPS_SYS_ON_PIN) == LOW) {
 #ifndef DEBUG_DISABLE
@@ -236,33 +272,13 @@ void gpsWakeUp() {
 	}
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
-
-	Serial.print("Calibrating GPS module...");
-#endif
-	gpsDelay(GPS_CALIBRATION_TIME);
-#ifndef DEBUG_DISABLE
-	Serial.println(" done.");
-
-#ifndef _GPS_NO_STATS
-	unsigned long encodedChars;
-	unsigned short goodSentences, failedChecksums;
-	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
-
-	Serial.print("GPS statistics: chars: ");
-	Serial.print(encodedChars);
-	Serial.print(", good sentences: ");
-	Serial.print(goodSentences);
-	Serial.print(", failed checksums: ");
-	Serial.print(failedChecksums);
-	Serial.println('.');
-#endif
 #endif
 }
 
 void gpsShutDown() {
 
 #ifndef DEBUG_DISABLE
-	Serial.print("Shutting down GPS module..");
+	Serial.print("Shutting down GPS module...");
 #endif
 	while (digitalRead(GPS_SYS_ON_PIN) == HIGH) {
 #ifndef DEBUG_DISABLE
@@ -294,6 +310,7 @@ bool gpsTryReadData(GpsData* const data) {
 
 	gps.crack_datetime(&data->year, &data->month, &data->day, &data->hour, &data->minute, &data->second, &hundreth, &age1);
 	data->nofSatellites = gps.satellites();
+	data->hdop = gps.hdop();
 	gps.GPS_LAT_LONG_FUNCTION(&data->latitude, &data->longitude, &age2);
 
 #ifndef GPS_MIN_INFO
@@ -308,6 +325,7 @@ bool gpsTryReadData(GpsData* const data) {
 
 	return age1 != TinyGPS::GPS_INVALID_AGE
 		&& data->nofSatellites != TinyGPS::GPS_INVALID_SATELLITES
+		&& data->hdop != TinyGPS::GPS_INVALID_HDOP
 		&& data->latitude != GPS_LAT_LONG_INVALID
 		&& data->longitude != GPS_LAT_LONG_INVALID
 		&& age2 != TinyGPS::GPS_INVALID_AGE
@@ -329,6 +347,8 @@ void gpsPrintData(const GpsData* const data) {
 	Serial.print(dateTime);
 	Serial.print(" # satellites: ");
 	Serial.print(data->nofSatellites);
+	Serial.print(" horizontal DOP: ");
+	Serial.print(data->hdop);
 	Serial.print(" latitude: ");
 	Serial.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	Serial.print(" longitude: ");
@@ -350,11 +370,30 @@ void gpsPrintData(const GpsData* const data) {
 #endif
 	Serial.println();
 }
+
+#ifndef _GPS_NO_STATS
+void gpsPrintStatistics() {
+
+	unsigned long encodedChars;
+	unsigned short goodSentences, failedChecksums;
+	gps.stats(&encodedChars, &goodSentences, &failedChecksums);
+
+	Serial.print("GPS statistics: chars: ");
+	Serial.print(encodedChars);
+	Serial.print(", good sentences: ");
+	Serial.print(goodSentences);
+	Serial.print(", failed checksums: ");
+	Serial.print(failedChecksums);
+	Serial.println('.');
+}
+#endif
 #endif
 
 /********************************
 ***  SD   ***  SD   ***  SD   ***
 ********************************/
+
+#ifndef SD_DISABLED
 
 #define SD_PIN (10)
 #define SD_FILE ("gps.csv")
@@ -376,7 +415,7 @@ bool sdWriteData(const GpsData* const data) {
 		return false;
 
 	if (!init)
-		file.println("Date/Time,# Satellites,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
+		file.println("Date/Time,# Satellites,Horizontal DOP,Latitude,Longitude,Altitude,Course,Speed (kt/100),Speed (km/h),From Home (m)");
 
 	char dateTime[20];
 	sprintf(dateTime, "%04d-%02d-%02dT%02d:%02d:%02dZ", data->year, data->month, data->day, data->hour, data->minute, data->second);
@@ -384,6 +423,8 @@ bool sdWriteData(const GpsData* const data) {
 	file.print(dateTime);
 	file.print(',');
 	file.print(data->nofSatellites);
+	file.print(',');
+	file.print(data->hdop);
 	file.print(',');
 	file.print(data->latitude, GPS_LAT_LONG_PRECISION);
 	file.print(',');
@@ -410,6 +451,7 @@ bool sdWriteData(const GpsData* const data) {
 	file.close();
 	return true;
 }
+#endif
 
 /********************************
 *** WIFI  *** WIFI  *** WIFI  ***
