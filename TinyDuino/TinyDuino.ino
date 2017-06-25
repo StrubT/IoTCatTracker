@@ -19,6 +19,8 @@ void ledShowChar(const char c);
 //#define _GPS_NO_STATS
 //#define GPS_MIN_INFO
 
+#define GPS_DELAY_MS 10000 //29000
+
 #ifdef GPS_FLOAT
 typedef float GpsLatLongAltType, GpsCourseSpeedType;
 #else
@@ -107,7 +109,7 @@ void loop() {
 #ifndef DEBUG_DISABLE
 	Serial.print("Reading GPS data...");
 #endif
-	gpsDelay(29000);
+	gpsDelay(GPS_DELAY_MS);
 #ifndef DEBUG_DISABLE
 	Serial.println(" done.");
 #endif
