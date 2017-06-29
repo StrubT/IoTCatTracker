@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<title>IoTCatTracker &ndash; Visualiser</title>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+	<meta name="robots" content="index, follow" />
+	<meta name="author" content="Thomas Reto Strub" />
+	<meta name="description" content="Visualiser for the IoT cat tracker records" />
+	<meta name="keywords" content="Thomas, Reto, Strub, StrubT, strut1, Hersiwil, Solothurn, Switzerland, IoT, GPS, cat, tracker" />
+	<link rel="icon" type="image/x-icon" href="https://www.StrubT.ch/favicon.ico" />
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous" />
+	<link rel="stylesheet" href="https://use.fontawesome.com/0b7364129d.css" />
+	<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAWJgjmulnfAxIjUiWguoSY0DJXk89PFS8"></script>
+	<script>
+		function visualise(event) {
+
+			var home = { lat: 47.166320, lng: 7.635007 };
+
+			var reader = new FileReader();
+			reader.onload = function () {
+				var coordinates = [home];
+				var lines = reader.result.split(/[\r\n]+/);
+
+				for (var line = 1; line < lines.length; line++) {
+					var fields = lines[line].split(/,/);
+					if (fields.length == 10)
+						coordinates.push({ lat: parseFloat(fields[3]), lng: parseFloat(fields[4]) });
+				}
+				coordinates.push(home);
+
+				new google.maps.Polyline({
+					path: coordinates,
+					geodesic: true,
+					strokeColor: '#FF0000',
+					strokeOpacity: 1.0,
+					strokeWeight: 2
+				}).setMap(new google.maps.Map(document.getElementById('map'), {
+					zoom: 17,
+					center: home,
+					mapTypeId: 'satellite'
+				}));
+			};
+
+			reader.readAsText(event.target.files[0]);
+		}
+	</script>
+</head>
+<body style="padding-top: 4rem;">
+	<header class="navbar navbar-toggleable-md navbar-inverse bg-inverse fixed-top">
+		<div class="container">
+			<h1 class="navbar-brand mb-0">IoTCatTracker &ndash; Visualiser</h1>
+		</div>
+	</header>
+	<main class="container">
+		<section class="jumbotron">
+			<h2 class="display-4">Intro</h2>
+			<p class="lead">
+				I realised the 'Cat Tracker' project in the course Internet of Things (MTE7117) at the Bern University of Applied Sciences (BUAS) in the spring term 2017.
+				This website can be used to visualise the recorded GPS positions.
+			</p>
+		</section>
+		<section class="mb-4">
+			<h2>Select File</h2>
+			<p>
+				<input type="file" id="file" accept=".csv" onchange="visualise(event)" />
+			</p>
+		</section>
+		<section class="mb-4">
+			<h2>Visualise GPS Positions</h2>
+			<div id="map" style="width: 100%; height: 50rem;">
+				<em class="text-muted">select a file to generate the map</em>
+			</div>
+		</section>
+	</main>
+</body>
+</html>
